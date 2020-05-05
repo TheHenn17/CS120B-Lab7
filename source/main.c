@@ -44,73 +44,45 @@ void TimerSet(unsigned long M) {
 	_avr_timer_cntcurr = _avr_timer_M;
 }
 
-enum States{Start, Wait, Inc, Dec, Rst} state;
+enum States{Start, Game, Wait, Stop} state;
+unsigned char sequence[] = {1, 2, 4, 2};
 unsigned char i;
-unsigned char cnt;
+unsigned char bl;
+unsigned char score;
 void Tick() {
 	switch(state) {
 		case Start:
-			state = Wait;
+			state = Game;
+			i = 0;
+			score = 5;
+			bl = 0x00;
+			break;
+		case Game:
+			if((PINA & 0x01) == 0x01 && bl == 0x01) { bl = 0x00; }
+			if((PINA & 0x01) == 0x00 && bl == 0x01) { state = Game; }
+			else if((PINA & 0x01) == 0x01 && bl == 0x00) { state = Game; }
+			else {
+				state = Wait;
+			}
+			if(i < 3) {i++;}
+			else {i = 0;}
 			break;
 		case Wait:
-			if((PINA & 0x03) == 0x00) { state = Rst; }
-			else if((PINA & 0x03) == 0x02) {
-				state = Inc;
-				i = 0;
-				if(cnt < 9) { cnt++; }
+			if((PINA & 0x01) == 0x01) {
+				state = Stop;
+				if(i == 0 || i == 2) { score++; }
+				else { if(score > 0) { score--; } }
 			}
-			else if((PINA & 0x03) == 0x01) {
-				state = Dec;
+                        else { state = Wait; }
+			break;
+		case Stop:
+			if((PINA & 0x01) == 0x01) { state = Stop; }
+                        else { 
+				state = Game;
+				bl = 0x01;
 				i = 0;
-				if(cnt > 0) { cnt--; }
+				if(score == 9) { score = 5; }
 			}
-			else { state = Wait; }
-			break;
-		case Inc:
-			if((PINA & 0x03) == 0x00) { state = Rst; }
-                        else if((PINA & 0x03) == 0x02) {
-                                state = Inc;
-                                if(i > 10) {
-                                	if(cnt < 9) { cnt++; }
-					i = 0;
-				}
-                        }
-                        else if((PINA & 0x03) == 0x01) {
-                                state = Dec;
-                                i = 0;
-                                if(cnt > 0) { cnt--; }
-                        }
-                        else { state = Wait; }
-			break;
-		case Dec:
-			if((PINA & 0x03) == 0x00) { state = Rst; }
-                        else if((PINA & 0x03) == 0x02) {
-                                state = Inc;
-                        	i = 0;
-				if(cnt < 9) { cnt++; }
-                        }
-                        else if((PINA & 0x03) == 0x01) {
-                                state = Dec;
-                                if(i > 10) {
-                                	if(cnt > 0) { cnt--; }
-					i = 0;
-				}
-                        }
-                        else { state = Wait; }
-			break;
-		case Rst:
-			if((PINA & 0x03) == 0x00) { state = Rst; }
-                        else if((PINA & 0x03) == 0x02) {
-                                state = Inc;
-                                i = 0;
-                                if(cnt < 9) { cnt++; }
-                        }
-                        else if((PINA & 0x03) == 0x01) {
-                                state = Dec;
-                                i = 0;
-				if(cnt > 0) { cnt--; }
-                        }
-                        else { state = Wait; }
 			break;
 		default:
 			state = Start;
@@ -118,23 +90,24 @@ void Tick() {
 	}
 	switch(state) {
 		case Start:
-			LCD_Cursor(1);
-			LCD_WriteData(cnt + '0');
+			PORTB = 0x00;
+			LCD_ClearScreen();
+			LCD_WriteData(score + '0');
+			break;
+		case Game:
+			PORTB = sequence[i];
+			LCD_ClearScreen();
+                        LCD_WriteData(score + '0');
 			break;
 		case Wait:
-			LCD_Cursor(1);
-			LCD_WriteData(cnt + '0');
-			break;
-		case Inc:
-		case Dec:
-			LCD_Cursor(1);
-			LCD_WriteData(cnt + '0');
-			i++;
-			break;
-		case Rst:
-			cnt = 0;
-			LCD_Cursor(1);
-			LCD_WriteData(cnt + '0');
+		case Stop:
+			if(score == 9) {
+                                LCD_DisplayString(1, "Victory!!");
+                        }
+                        else {
+                                LCD_ClearScreen();
+                                LCD_WriteData(score + '0');
+                        }
 			break;
 		default:
 			break;
@@ -142,13 +115,13 @@ void Tick() {
 }
 
 int main(void) {
+	DDRB = 0xFF; PORTB = 0x00;
 	DDRC = 0xFF; PORTC = 0x00;
 	DDRD = 0xFF; PORTD = 0x00;
 	DDRA = 0x00; PORTA = 0xFF;
-	TimerSet(100);
+	TimerSet(300);
 	TimerOn();
 	state = Start;
-	cnt = 0;
 	LCD_init();
 	LCD_ClearScreen();
 	while (1) {
