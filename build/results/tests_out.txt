@@ -1,0 +1,7 @@
+Breakpoint 1 at 0x5d2: file source/main.c, line 154.
+Note: automatically using hardware breakpoints for read-only addresses.
+======================================================
+Running all tests..."
+
+"9-->0 holding"..."0-->9 holding"..."9-->5 clicking, reset, 0-->5 clicking"..."going over under"...======================================================
+Remote doesn't know how to detach
